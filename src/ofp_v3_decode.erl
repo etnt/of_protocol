@@ -316,11 +316,24 @@ decode_flow_stats_list(Binary, FlowStatsList) ->
 
 decode_table_stats(Binary) ->
     <<TableInt:8, _Pad:56, NameBin:?OFP_MAX_TABLE_NAME_LEN/bytes,
-      MatchBin:8/bytes, WildcardsBin:8/bytes, WriteActionsBin:4/bytes,
-      ApplyActionsBin:4/bytes, WriteSetBin:8/bytes, ApplySetBin:8/bytes,
+      _UnusedMatchBin:28/bitstring, MatchBin0:36/bitstring,
+      _UnusedWildcardsBin:28/bitstring, WildcardsBin0:36/bitstring,
+      WriteActionsBin:4/bytes, ApplyActionsBin:4/bytes,
+      _UnusedWriteSetBin:28/bitstring, WriteSetBin0:36/bitstring,
+      _UnusedApplySetBin:28/bitstring, ApplySetBin0:36/bitstring,
       MetaMatch:8/bytes, MetaWrite:8/bytes, InstructionsBin:4/bytes,
       ConfigInt:32, Max:32, ACount:32, LCount:64,
       MCount:64>> = Binary,
+
+    %% Workaround for OpenvSwitch 1.11 which sends wrong number of bits!
+    %% NB: (12 Sep 2013) A patch has been made in the master branch
+    %%     of ovs which solves this.
+    %% But there should be no harm in keeping this code anyway.
+    MatchBin     = <<0:28, MatchBin0/bitstring>>,
+    WildcardsBin = <<0:28, WildcardsBin0/bitstring>>,
+    WriteSetBin  = <<0:28, WriteSetBin0/bitstring>>,
+    ApplySetBin  = <<0:28, ApplySetBin0/bitstring>>,
+
     Table = get_id(table, TableInt),
     Name = ofp_utils:strip_string(NameBin),
     Match = binary_to_flags(oxm_ofb_match_fields, MatchBin),
