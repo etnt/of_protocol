@@ -490,7 +490,7 @@ decode_body(set_config, Binary) ->
     Miss = get_id(miss_send_len, MissInt),
     #ofp_set_config{flags = Flags, miss_send_len = Miss};
 decode_body(packet_in, Binary) ->
-    <<BufferIdInt:32, TotalLen:16, ReasonInt:8,
+    <<BufferIdInt:32, _TotalLen:16, ReasonInt:8,
       TableId:8, Tail/bytes>> = Binary,
 
     %% Get the match_len exluding the padding.

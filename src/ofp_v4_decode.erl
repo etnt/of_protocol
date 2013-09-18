@@ -888,15 +888,22 @@ decode_body(set_config, Binary) ->
     Miss = get_id(miss_send_len, MissInt),
     #ofp_set_config{flags = Flags, miss_send_len = Miss};
 decode_body(packet_in, Binary) ->
-    <<BufferIdInt:32, TotalLen:16, ReasonInt:8,
+    <<BufferIdInt:32, _TotalLen:16, ReasonInt:8,
       TableId:8, Cookie:64/bits, Tail/bytes>> = Binary,
-    MatchLength = size(Binary) - (?PACKET_IN_SIZE - ?MATCH_SIZE)
-        - 2 - TotalLen + ?OFP_HEADER_SIZE,
+
+    %% Get the match_len exluding the padding.
+    <<_MatchType:2/bytes, MatchLengthExPad:16, _/bytes>> = Tail,
+    %% Compute the amount of match padding.
+    MatchPadLen = (8 - (MatchLengthExPad rem 8)),
+    %% Compute the correct size of the Match binary.
+    MatchLength = MatchLengthExPad + MatchPadLen,
+
     <<MatchBin:MatchLength/bytes, _Pad:16, Payload/bytes>> = Tail,
     BufferId = get_id(buffer_id, BufferIdInt),
     Reason = ofp_v4_enum:to_atom(packet_in_reason, ReasonInt),
     Match = decode_match(MatchBin),
-    <<Data:TotalLen/bytes>> = Payload,
+    PayLoadLen = size(Binary) - 18 - MatchLength,
+    <<Data:PayLoadLen/bytes>> = Payload,
     #ofp_packet_in{buffer_id = BufferId, reason = Reason,
                    table_id = TableId, cookie = Cookie,
                    match = Match, data = Data};
